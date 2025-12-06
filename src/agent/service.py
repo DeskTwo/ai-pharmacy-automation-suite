@@ -1,12 +1,14 @@
-# src/agent/service.py
+import logging
 from openai import AsyncOpenAI
 from src.agent.schemas import EmailAnalysis, ActionType
 from src.gateway.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger("agent.service")
 
 class SupportAgent:
     def __init__(self):
+        # Der Client wird initialisiert
         self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
     async def process_inquiry(self, email_text: str, order_context: dict) -> EmailAnalysis:
@@ -15,7 +17,6 @@ class SupportAgent:
         um eine Antwort zu generieren.
         """
         
-        # Wir füttern das LLM mit dem aktuellen Wissen aus dem Scraper
         system_prompt = (
             "Du bist ein intelligenter Support-Bot für eine Cannabis-Apotheke. "
             "Deine Aufgabe: Analysiere die E-Mail des Patienten basierend auf dem beigefügten Bestellstatus (JSON). "
@@ -35,6 +36,7 @@ class SupportAgent:
         """
 
         try:
+            logger.info("Sending request to LLM...")
             response = await self.client.beta.chat.completions.parse(
                 model="gpt-4o-mini",
                 messages=[
@@ -44,9 +46,12 @@ class SupportAgent:
                 response_format=EmailAnalysis,
                 temperature=0.1, # Geringe Kreativität für Konsistenz
             )
-            return response.choices[0].message.parsed
+            result = response.choices[0].message.parsed
+            logger.info(f"LLM Analysis complete. Action: {result.suggested_action}")
+            return result
 
         except Exception as e:
+            logger.error(f"LLM Error: {e}")
             # Fallback bei API Fehler -> Immer eskalieren
             return EmailAnalysis(
                 summary="Systemfehler bei Analyse",
@@ -56,4 +61,5 @@ class SupportAgent:
                 confidence=0.0
             )
 
+# Singleton Instanz
 agent_instance = SupportAgent()
