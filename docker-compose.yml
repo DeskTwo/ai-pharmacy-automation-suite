@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  # Der Haupt-Service (API & Agent)
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: cannaleo_support_agent
+    ports:
+      - "8000:8000"  # Mapping: Host Port -> Container Port
+    env_file:
+      - .env         # Lädt Secrets sicher aus der Datei (die in .gitignore ist!)
+    volumes:
+      - ./src:/app/src  # Bind Mount für Hot-Reloading bei Code-Änderungen
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    networks:
+      - pharmacy-net
+
+# Optional: Ein isoliertes Netzwerk, falls später eine DB dazu kommt
+networks:
+  pharmacy-net:
+    driver: bridge
